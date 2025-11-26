@@ -6,6 +6,7 @@ local button = toolbar:CreateButton("Include_OpenUI_Plugin","Open UI","rbxasseti
 
 local widget = plugin:CreateDockWidgetPluginGui("Include_Plugin_YS",DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float,false,false,150,150,50,50))
 local HttpService = game:GetService("HttpService")
+local ScriptEditorService = game:GetService("ScriptEditorService")
 
 
 
@@ -451,7 +452,7 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 	end
 	local profile = {Title=Title;Code=""}
 	--generating headers:
-	
+
 	local Frame = Instance.new("Frame") do
 		SetProperty(Frame,"BackgroundColor3",ItemColor)
 		SetProperty(Frame,"BorderSizePixel",0)
@@ -476,7 +477,7 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Open_File,"BackgroundColor3",Green)
 		SetProperty(Open_File,"BorderSizePixel",0)
 		SetProperty(Open_File,"FontFace",FONT)
-		SetProperty(Open_File,"Name","Open_File")
+		--NAME_SetProperty(Open_File,"Name","Open_File")
 		SetProperty(Open_File,"Position",HEADER_UDim2_0__45)
 		SetProperty(Open_File,"Size",HEADER_Button)
 		SetProperty(Open_File,"Text","Open")
@@ -495,10 +496,10 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Paste_Code,"BackgroundColor3",Blue)
 		SetProperty(Paste_Code,"BorderSizePixel",0)
 		SetProperty(Paste_Code,"FontFace",FONT)
-		SetProperty(Paste_Code,"Name","Paste Code")
+		--NAME_SetProperty(Paste_Code,"Name","Paste Code")
 		SetProperty(Paste_Code,"Position",UDim2.fromScale(0.633,0))
 		SetProperty(Paste_Code,"Size",HEADER_Button)
-		SetProperty(Paste_Code,"Text","Paste Code Slection")
+		SetProperty(Paste_Code,"Text","Paste Code")
 		SetProperty(Paste_Code,"TextScaled",true)
 		SetProperty(Paste_Code,"ZIndex",5)
 		SetProperty(Paste_Code,"Parent",Frame)
@@ -514,7 +515,7 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Delete,"BackgroundColor3",Red)
 		SetProperty(Delete,"BorderSizePixel",0)
 		SetProperty(Delete,"FontFace",FONT)
-		SetProperty(Delete,"Name","Delete")
+		--NAME_SetProperty(Delete,"Name","Delete")
 		SetProperty(Delete,"Position",UDim2.fromScale(0.816,0))
 		SetProperty(Delete,"Size",HEADER_Button)
 		SetProperty(Delete,"Text","Delete")
@@ -582,7 +583,7 @@ for i,v in HEADERS_FILE do
 		SetProperty(Open_File,"BackgroundColor3",Green)
 		SetProperty(Open_File,"BorderSizePixel",0)
 		SetProperty(Open_File,"FontFace",FONT)
-		SetProperty(Open_File,"Name","Open_File")
+		--NAME_SetProperty(Open_File,"Name","Open_File")
 		SetProperty(Open_File,"Position",HEADER_UDim2_0__45)
 		SetProperty(Open_File,"Size",HEADER_Button)
 		SetProperty(Open_File,"Text","Open")
@@ -601,10 +602,10 @@ for i,v in HEADERS_FILE do
 		SetProperty(Paste_Code,"BackgroundColor3",Blue)
 		SetProperty(Paste_Code,"BorderSizePixel",0)
 		SetProperty(Paste_Code,"FontFace",FONT)
-		SetProperty(Paste_Code,"Name","Paste Code")
+		--NAME_SetProperty(Paste_Code,"Name","Paste Code")
 		SetProperty(Paste_Code,"Position",UDim2.fromScale(0.633,0))
 		SetProperty(Paste_Code,"Size",HEADER_Button)
-		SetProperty(Paste_Code,"Text","Paste Code Slection")
+		SetProperty(Paste_Code,"Text","Paste Code")
 		SetProperty(Paste_Code,"TextScaled",true)
 		SetProperty(Paste_Code,"ZIndex",5)
 		SetProperty(Paste_Code,"Parent",Frame)
@@ -620,7 +621,7 @@ for i,v in HEADERS_FILE do
 		SetProperty(Delete,"BackgroundColor3",Red)
 		SetProperty(Delete,"BorderSizePixel",0)
 		SetProperty(Delete,"FontFace",FONT)
-		SetProperty(Delete,"Name","Delete")
+		--NAME_SetProperty(Delete,"Name","Delete")
 		SetProperty(Delete,"Position",UDim2.fromScale(0.816,0))
 		SetProperty(Delete,"Size",HEADER_Button)
 		SetProperty(Delete,"Text","Delete")
@@ -646,6 +647,103 @@ for i,v in HEADERS_FILE do
 	table.insert(LiveOrder_Ref,Frame)
 	SetProperty(Frame,"Parent",ScrollingFrame)
 end
+type Request = {
+	position: {
+		line: number,
+		character: number
+	},
+	textDocument: {
+		document: ScriptDocument?,
+		script: LuaSourceContainer?
+	}
+}
+type Response = {
+	items:{item}
+}
+type item = {
+	label: string, -- The label
+	kind: Enum.CompletionItemKind?,
+	tags: {Enum.CompletionItemTag}?,
+	detail: string?,
+	documentation: {
+		value: string,
+	}?,
+	overloads: number?,
+	learnMoreLink: string?,
+	codeSample: string?,
+	preselect: boolean?,
+	textEdit:textEdit
+}
+type line_sequence = {line: number,character: number}
+type start_end = {start:line_sequence;["end"]:line_sequence}
+type textEdit = {
+	newText: string,
+	insert: start_end,
+	replace: start_end,
+}?
+local include_item:item = {label="include";
+	kind=Enum.CompletionItemKind.Keyword;
+	detail = "Include Keyword";
+	documentation = {value="Sync up code field"};
+	codeSample = [[--#include <MyHeader>
+	local function MyPrint(val:string):()
+		print(val)
+	end
+	--\include]]
+}
+
+
+ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",1,function(request:Request, response:Response):Response
+	local txt_doc = request.textDocument
+	local doc,script = txt_doc.document,txt_doc.script
+	if not doc or not script or doc:GetScript()~=script then return response end
+	local position = request.position
+	local line_n = position.line
+	local char_position = position.character
+	local line = doc:GetLine(line_n)
+	local inc,inc_end = string.find(line,"#?in[clude]*")
+	if not inc then return response end
+	inc_end = (inc_end::number)+1
+	local items = response.items
+	local _start_include = string.find(line,"#include")
+	if not _start_include then
+		local include_item = table.clone(include_item)
+		local tab:start_end = {start={line=line_n,character=inc};["end"]={line=line_n,character=inc_end::number}}
+		include_item.textEdit = {insert=tab,replace=tab,newText="--#include "}
+		table.insert(items,include_item)
+		return response
+	end
+	--include exists, show variants
+	
+	if not inc_end or string.find(string.sub(line,_start_include,char_position),">") then return response end
+	
+	local replace_template = {
+		start={line=line_n;character=inc_end},
+		["end"]={line=line_n,character=char_position}
+	};
+	local textEditDetails:textEdit = {
+		newText = "";
+		replace = replace_template;
+		insert = replace_template;
+	};
+	local include_header:item = {
+		documentation = {value="Header file"};
+		label="";
+		kind=Enum.CompletionItemKind.Value;
+		tags={Enum.CompletionItemTag.TypeCorrect};
+		detail = "Header";preselect=true;
+	}
+	for i,v in Live_files do
+		local textEdit = table.clone(textEditDetails)::textEdit
+		local label = "<"..v.Title..">"
+		(textEdit::any).newText=" "..label.."\n"..v.Code.."--\\include"
+		local include_header = table.clone(include_header)::item
+		include_header.label=label
+		include_header.textEdit=textEdit
+		table.insert(items,include_header)
+	end
+	return response
+end)
 
 local function UpdateScrollbar():()
 	local sizeY = GetVector2(GetProperty(UIListLayout_1,"AbsoluteContentSize"),"Y")
@@ -681,7 +779,7 @@ local connection = Connect(GetProperty(Studio,"ThemeChanged")::RBXScriptSignal,f
 	SetProperty(path,"TextColor3",BrightTextColor)
 	SetProperty(path,"PlaceholderColor3",DimmedTextColor)
 	SetProperty(TextInputName,"PlaceholderColor3",DimmedTextColor)
-	
+
 	for i in Stack_DynamicTextColorList do
 		SetProperty(i,"TextColor3",BrightTextColor)
 	end
@@ -699,6 +797,7 @@ end)
 	tab_save.Headers = headers
 	local res = HttpService:JSONEncode(tab_save)
 	plugin:SetSetting("Include_Plugin_YS",res)
+	ScriptEditorService:DeregisterAutocompleteCallback("#Include_YS")
 end)
 
 SetProperty(Main,"Parent",widget)
