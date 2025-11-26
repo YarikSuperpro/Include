@@ -7,6 +7,7 @@ local button = toolbar:CreateButton("Include_OpenUI_Plugin","Open UI","rbxasseti
 local widget = plugin:CreateDockWidgetPluginGui("Include_Plugin_YS",DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float,false,false,150,150,50,50))
 local HttpService = game:GetService("HttpService")
 local ScriptEditorService = game:GetService("ScriptEditorService")
+local Selection = game:GetService("Selection")
 
 
 
@@ -42,6 +43,13 @@ local GetProperty:(ins:Instance,prop:string)->any
 local Connect:<A>(signal:RBXScriptSignal,func:A)->RBXScriptConnection
 local Destroy:(ins:Instance)->()
 local GetVector2:(vec:Vector2,val:"X"|"Y")->number
+local UpdateSourceAsync:(service:ScriptEditorService,script:LuaSourceContainer,callback: any)->()
+local OpenScriptDocumentAsync:(service:ScriptEditorService,script: LuaSourceContainer, options: { [string]: any }?)->...any
+local Set_Selection:(service:Selection,selection: {Instance})->()
+local Get_Selection:(service:Selection)->{Instance}
+local GetScriptDocuments:(service:ScriptEditorService)->{ScriptDocument}
+local GetSelectedText:(ScriptDocument)->string
+local IsA:(Instance,string)->boolean
 xpcall(function():()
 	(game::any)[nil]=nil
 end,function():()
@@ -57,6 +65,13 @@ xpcall(function():()
 end,function():()
 	GetVector2 = debug.info(2,"f")
 end)
+IsA = GetProperty(plugin,"IsA")
+Get_Selection = GetProperty(Selection,"Get")
+Set_Selection = GetProperty(Selection,"Set")
+GetScriptDocuments = GetProperty(ScriptEditorService,"GetScriptDocuments")
+OpenScriptDocumentAsync = GetProperty(ScriptEditorService,"OpenScriptDocumentAsync")
+UpdateSourceAsync = GetProperty(ScriptEditorService,"UpdateSourceAsync")
+GetSelectedText = GetProperty(GetScriptDocuments(ScriptEditorService)[1]::ScriptDocument,"GetSelectedText")
 Connect = GetProperty(plugin,"Unloading").Connect
 Destroy = GetProperty(plugin,"Destroy")
 SetProperty(widget,"Name","Include")
@@ -485,6 +500,18 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Open_File,"ZIndex",5)
 		SetProperty(Open_File,"Parent",Frame)
 	end
+	local function ReturnSource(content:string):string
+		return profile.Code
+	end
+	Connect(GetProperty(Open_File,"MouseButton1Click")::RBXScriptSignal,function():()
+		local module = Instance.new("ModuleScript")
+		SetProperty(module,"Name",profile.Title.." Export")
+		SetProperty(module,"Archivable",false)
+		SetProperty(module,"Parent",game)
+		Set_Selection(Selection,{module})
+		UpdateSourceAsync(ScriptEditorService,module,ReturnSource)
+		OpenScriptDocumentAsync(ScriptEditorService,module)
+	end)
 	--[Children] {
 	local UIGradient = Instance.new("UIGradient") do
 		SetProperty(UIGradient,"Color",Shade)
@@ -504,6 +531,29 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Paste_Code,"ZIndex",5)
 		SetProperty(Paste_Code,"Parent",Frame)
 	end
+	local function ApplySource(source:string):nil
+		profile.Code=source
+		return nil
+	end
+	Connect(GetProperty(Paste_Code,"MouseButton1Click")::RBXScriptSignal,function():()
+		local documents = GetScriptDocuments(ScriptEditorService)
+		local selection:string?=nil
+		for i,v in documents do
+			local text = GetSelectedText(v)::string
+			if text=="" then continue end
+			selection=text
+		end
+		if not selection then 
+			for i,v in Get_Selection(Selection) do
+				if not IsA(v,"LuaSourceContainer") then continue end
+				UpdateSourceAsync(ScriptEditorService,v,ApplySource)
+				return
+			end
+			warn("[Include]: Please select code snippet first.")
+			return
+		end
+		profile.Code=selection
+	end)
 	--[Children] {
 	local UIGradient_1 = Instance.new("UIGradient") do
 		SetProperty(UIGradient_1,"Color",Shade)
@@ -591,6 +641,18 @@ for i,v in HEADERS_FILE do
 		SetProperty(Open_File,"ZIndex",5)
 		SetProperty(Open_File,"Parent",Frame)
 	end
+	local function ReturnSource(content:string):string
+		return profile.Code
+	end
+	Connect(GetProperty(Open_File,"MouseButton1Click")::RBXScriptSignal,function():()
+		local module = Instance.new("ModuleScript")
+		SetProperty(module,"Name",profile.Title.." Export")
+		SetProperty(module,"Archivable",false)
+		SetProperty(module,"Parent",game)
+		Set_Selection(Selection,{module})
+		UpdateSourceAsync(ScriptEditorService,module,ReturnSource)
+		OpenScriptDocumentAsync(ScriptEditorService,module)
+	end)
 	--[Children] {
 	local UIGradient = Instance.new("UIGradient") do
 		SetProperty(UIGradient,"Color",Shade)
@@ -610,6 +672,29 @@ for i,v in HEADERS_FILE do
 		SetProperty(Paste_Code,"ZIndex",5)
 		SetProperty(Paste_Code,"Parent",Frame)
 	end
+	local function ApplySource(source:string):nil
+		profile.Code=source
+		return nil
+	end
+	Connect(GetProperty(Paste_Code,"MouseButton1Click")::RBXScriptSignal,function():()
+		local documents = GetScriptDocuments(ScriptEditorService)
+		local selection:string?=nil
+		for i,v in documents do
+			local text = GetSelectedText(v)::string
+			if text=="" then continue end
+			selection=text
+		end
+		if not selection then 
+			for i,v in Get_Selection(Selection) do
+				if not IsA(v,"LuaSourceContainer") then continue end
+				UpdateSourceAsync(ScriptEditorService,v,ApplySource)
+				return
+			end
+			warn("[Include]: Please select code snippet first.")
+			return
+		end
+		profile.Code=selection
+	end)
 	--[Children] {
 	local UIGradient_1 = Instance.new("UIGradient") do
 		SetProperty(UIGradient_1,"Color",Shade)
@@ -701,7 +786,7 @@ ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",1,function(reques
 	local line_n = position.line
 	local char_position = position.character
 	local line = doc:GetLine(line_n)
-	local inc,inc_end = string.find(line,"#?in[clude]*")
+	local inc,inc_end = string.find(line,"#?incl?u?d?e?")
 	if not inc then return response end
 	inc_end = (inc_end::number)+1
 	local items = response.items
@@ -736,7 +821,7 @@ ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",1,function(reques
 	for i,v in Live_files do
 		local textEdit = table.clone(textEditDetails)::textEdit
 		local label = "<"..v.Title..">"
-		(textEdit::any).newText=" "..label.."\n"..v.Code.."--\\include"
+		(textEdit::any).newText=" "..label.."\n"..v.Code.."\n--\\include"
 		local include_header = table.clone(include_header)::item
 		include_header.label=label
 		include_header.textEdit=textEdit
