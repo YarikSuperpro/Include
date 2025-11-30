@@ -2,18 +2,19 @@
 --!optimize 2
 local SetProperty:(ins:Instance,prop:string,val:any)->()
 local GetProperty:(ins:Instance,prop:string)->any
+
 local GetService:(DataModel:DataModel,service:string)->Instance
 xpcall(function():()
 	(game::any)[nil]=nil
 end,function():()
-	SetProperty = debug.info(2,"f")
+	SetProperty = debug.info(2,"f")::typeof(SetProperty)
 end)
 xpcall(function():()
 	return (game::any)[nil]
 end,function():()
-	GetProperty = debug.info(2,"f")
+	GetProperty = debug.info(2,"f")::typeof(GetProperty)
 end)
-GetService = GetProperty(game,"GetService")
+GetService = GetProperty(game,"GetService")::typeof(GetService)
 local RunService = GetService(game,"RunService")::RunService
 if RunService:IsClient() and RunService:IsRunning() then return end
 local toolbar = plugin:CreateToolbar("Include")
@@ -23,6 +24,7 @@ local widget = plugin:CreateDockWidgetPluginGui("Include_Plugin_YS",DockWidgetPl
 local HttpService = GetService(game,"HttpService")::HttpService
 local ScriptEditorService = GetService(game,"ScriptEditorService")::ScriptEditorService
 local Selection = GetService(game,"Selection")::Selection
+local StudioService = GetService(game,"StudioService")::StudioService
 
 local UDim2_one = UDim2.fromScale(1,1)
 local UDim2_0__45_0_1_0 = UDim2.fromScale(0.45,1)
@@ -67,43 +69,49 @@ local Set_Selection:(service:Selection,selection: {Instance})->()
 local Get_Selection:(service:Selection)->{Instance}
 local GetScriptDocuments:(service:ScriptEditorService)->{ScriptDocument}
 local GetSelectedText:(ScriptDocument)->string
+local GetSelection:(ScriptDocument)->(number,number,number,number)
 local GetScript:(ScriptDocument)->LuaSourceContainer
 local GetLine:(ScriptDocument,number)->string
-local ForceSetSelectionAsync:(cursorLine: number, cursorCharacter: number, anchorLine: number?, anchorCharacter: number?)->...any
+local ForceSetSelectionAsync:(ScriptDocument,cursorLine: number, cursorCharacter: number, anchorLine: number?, anchorCharacter: number?)->...any
 local IsA:(Instance,string)->boolean
 local JSONDecode:(service:HttpService,string)->any
 local JSONEncode:(service:HttpService,table:any)->string
 local GetPropertyChangedSignal:(ins:Instance,property: string)->RBXScriptSignal
 local GetDescendants:(ins:Instance)->{Instance}
+local CreatePluginAction:(plugin:Plugin,actionId: string, text: string, statusTip: string, 
+	iconName: string?, allowBinding: boolean?)->PluginAction
+
 
 xpcall(function():()
 	return (Vector2.zero::any)[nil]
 end,function():()
-	GetVector2 = debug.info(2,"f")
+	GetVector2 = debug.info(2,"f")::typeof(GetVector2)
 end)
-JSONDecode = GetProperty(HttpService,"JSONDecode")
-JSONEncode = GetProperty(HttpService,"JSONEncode")
-GetDescendants = GetProperty(plugin,"GetDescendants")
-IsA = GetProperty(plugin,"IsA")
-GetPropertyChangedSignal = GetProperty(plugin,"GetPropertyChangedSignal")
-Get_Selection = GetProperty(Selection,"Get")
-Set_Selection = GetProperty(Selection,"Set")
-RegisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"RegisterScriptAnalysisCallback")
-DeregisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"DeregisterScriptAnalysisCallback")
-GetEditorSource = GetProperty(ScriptEditorService,"GetEditorSource")
-GetScriptDocuments = GetProperty(ScriptEditorService,"GetScriptDocuments")
-OpenScriptDocumentAsync = GetProperty(ScriptEditorService,"OpenScriptDocumentAsync")
-FindScriptDocument = GetProperty(ScriptEditorService,"FindScriptDocument")
-UpdateSourceAsync = GetProperty(ScriptEditorService,"UpdateSourceAsync")
+JSONDecode = GetProperty(HttpService,"JSONDecode")::typeof(JSONDecode)
+JSONEncode = GetProperty(HttpService,"JSONEncode")::typeof(JSONEncode)
+GetDescendants = GetProperty(plugin,"GetDescendants")::typeof(GetDescendants)
+IsA = GetProperty(plugin,"IsA")::typeof(IsA)
+CreatePluginAction = GetProperty(plugin,"CreatePluginAction")::typeof(CreatePluginAction)
+GetPropertyChangedSignal = GetProperty(plugin,"GetPropertyChangedSignal")::typeof(GetPropertyChangedSignal)
+Get_Selection = GetProperty(Selection,"Get")::typeof(Get_Selection)
+Set_Selection = GetProperty(Selection,"Set")::typeof(Set_Selection)
+RegisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"RegisterScriptAnalysisCallback")::typeof(RegisterScriptAnalysisCallback)
+DeregisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"DeregisterScriptAnalysisCallback")::typeof(DeregisterScriptAnalysisCallback)
+GetEditorSource = GetProperty(ScriptEditorService,"GetEditorSource")::typeof(GetEditorSource)
+GetScriptDocuments = GetProperty(ScriptEditorService,"GetScriptDocuments")::typeof(GetScriptDocuments)
+OpenScriptDocumentAsync = GetProperty(ScriptEditorService,"OpenScriptDocumentAsync")::typeof(OpenScriptDocumentAsync)
+FindScriptDocument = GetProperty(ScriptEditorService,"FindScriptDocument")::typeof(FindScriptDocument)
+UpdateSourceAsync = GetProperty(ScriptEditorService,"UpdateSourceAsync")::typeof(UpdateSourceAsync)
 local cmd = GetScriptDocuments(ScriptEditorService)[1]::ScriptDocument
-ForceSetSelectionAsync = GetProperty(cmd,"ForceSetSelectionAsync")
-GetSelectedText = GetProperty(cmd,"GetSelectedText")
-GetScript = GetProperty(cmd,"GetScript")
-GetLine = GetProperty(cmd,"GetLine")
+ForceSetSelectionAsync = GetProperty(cmd,"ForceSetSelectionAsync")::typeof(ForceSetSelectionAsync)
+GetSelectedText = GetProperty(cmd,"GetSelectedText")::typeof(GetSelectedText)
+GetSelection = GetProperty(cmd,"GetSelection")::typeof(GetSelection)
+GetScript = GetProperty(cmd,"GetScript")::typeof(GetScript)
+GetLine = GetProperty(cmd,"GetLine")::typeof(GetLine)
 local _random_event_temp = GetProperty(plugin,"Unloading")
-Once = _random_event_temp.Once
-Connect = _random_event_temp.Connect
-Destroy = GetProperty(plugin,"Destroy")
+Once = _random_event_temp.Once::typeof(Once)
+Connect = _random_event_temp.Connect::typeof(Connect)
+Destroy = GetProperty(plugin,"Destroy")::typeof(Destroy)
 SetProperty(widget,"Name","Include")
 SetProperty(widget,"Title","Include")
 Connect(GetProperty(button,"Click")::RBXScriptSignal,function():()
@@ -115,6 +123,9 @@ local try,ret = pcall(JSONDecode,HttpService,Data)
 if not try then
 	ret = {}::any
 end
+
+local Action_SyncHeaders = CreatePluginAction(plugin,"Include_YS_SyncHeaders","Sync Headers","Sync button keybind.","rbxassetid://93518966918582",true)
+local Action_UpdateHeader = CreatePluginAction(plugin,"Include_YS_UpdateHeader","Update Header","Paste Code button keybind.","rbxassetid://78809717013912",true)
 
 local ScriptAnalysisEnabled = ret.Analysis==true
 local PATH_TO_SYNC = ret.Path or ""
@@ -582,23 +593,20 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 		SetProperty(Paste_Code,"Parent",Frame)
 	end
 	Connect(GetProperty(Paste_Code,"MouseButton1Click")::RBXScriptSignal,function():()
-		local documents = GetScriptDocuments(ScriptEditorService)
-		local selection:string?=nil
-		for i,v in documents do
-			local text = GetSelectedText(v)::string
-			if text=="" then continue end
-			selection=text
-		end
-		if not selection then 
-			for i,v in Get_Selection(Selection) do
-				if not IsA(v,"LuaSourceContainer") then continue end
-				profile.Code = GetEditorSource(ScriptEditorService,v)
-				return
+		local script_open = GetProperty(StudioService,"ActiveScript")::LuaSourceContainer?
+		if script_open then
+			local document = FindScriptDocument(ScriptEditorService,script_open::LuaSourceContainer)
+			if document then
+				local text = GetSelectedText(document)::string
+				profile.Code=text
 			end
-			warn("[Include]: Please select code snippet first.")
+		end
+		for i,v in Get_Selection(Selection) do
+			if not IsA(v,"LuaSourceContainer") then continue end
+			profile.Code = GetEditorSource(ScriptEditorService,v::LuaSourceContainer)
 			return
 		end
-		profile.Code=selection
+		warn("[Include]: Please select code snippet first.")
 	end)
 	--[Children] {
 	local UIGradient_1 = Instance.new("UIGradient") do
@@ -719,23 +727,20 @@ for i,v in HEADERS_FILE do
 		SetProperty(Paste_Code,"Parent",Frame)
 	end
 	Connect(GetProperty(Paste_Code,"MouseButton1Click")::RBXScriptSignal,function():()
-		local documents = GetScriptDocuments(ScriptEditorService)
-		local selection:string?=nil
-		for i,v in documents do
-			local text = GetSelectedText(v)::string
-			if text=="" then continue end
-			selection=text
-		end
-		if not selection then 
-			for i,v in Get_Selection(Selection) do
-				if not IsA(v,"LuaSourceContainer") then continue end
-				profile.Code = GetEditorSource(ScriptEditorService,v)
-				return
+		local script_open = GetProperty(StudioService,"ActiveScript")::LuaSourceContainer?
+		if script_open then
+			local document = FindScriptDocument(ScriptEditorService,script_open::LuaSourceContainer)
+			if document then
+				local text = GetSelectedText(document)::string
+				profile.Code=text
 			end
-			warn("[Include]: Please select code snippet first.")
+		end
+		for i,v in Get_Selection(Selection) do
+			if not IsA(v,"LuaSourceContainer") then continue end
+			profile.Code = GetEditorSource(ScriptEditorService,v::LuaSourceContainer)
 			return
 		end
-		profile.Code=selection
+		warn("[Include]: Please select code snippet first.")
 	end)
 	--[Children] {
 	local UIGradient_1 = Instance.new("UIGradient") do
@@ -793,7 +798,7 @@ local function ParsePath(input:string):{Instance}
 		local start = GetService(game,service_)
 		for ii,vv in dir do
 			if ii==1 or vv=="Parent" then continue end
-			start=start[vv]
+			start=(start::any)[vv]
 		end
 		_path[i]=start
 	end
@@ -965,23 +970,20 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 				SetProperty(Paste_Code,"Parent",Frame)
 			end
 			Connect(GetProperty(Paste_Code,"MouseButton1Click")::RBXScriptSignal,function():()
-				local documents = GetScriptDocuments(ScriptEditorService)
-				local selection:string?=nil
-				for i,v in documents do
-					local text = GetSelectedText(v)::string
-					if text=="" then continue end
-					selection=text
-				end
-				if not selection then 
-					for i,v in Get_Selection(Selection) do
-						if not IsA(v,"LuaSourceContainer") then continue end
-						profile.Code = GetEditorSource(ScriptEditorService,v)
-						return
+				local script_open = GetProperty(StudioService,"ActiveScript")::LuaSourceContainer?
+				if script_open then
+					local document = FindScriptDocument(ScriptEditorService,script_open::LuaSourceContainer)
+					if document then
+						local text = GetSelectedText(document)::string
+						profile.Code=text
 					end
-					warn("[Include]: Please select code snippet first.")
+				end
+				for i,v in Get_Selection(Selection) do
+					if not IsA(v,"LuaSourceContainer") then continue end
+					profile.Code = GetEditorSource(ScriptEditorService,v::LuaSourceContainer)
 					return
 				end
-				profile.Code=selection
+				warn("[Include]: Please select code snippet first.")
 			end)
 			--[Children] {
 			local UIGradient_1 = Instance.new("UIGradient") do
@@ -1023,12 +1025,109 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 		Destroy(module)
 	end)
 end)
+
+
+local function UpdateInclude(source:string, visited:{[string]:true}):string
+	local output = ""
+	local pos = 1
+	local len = #source
+
+	while pos <= len do
+		--skip long strings [[ ... ]]
+		local s, e, key = string.find(source, "%-%-#include%s*<([%w_%.]-)>", pos)
+		do
+			local ls, le = string.find(source, "%[%[", pos)
+
+			if ls and (not s or ls < s) then
+				local long_end = string.find(source, "%]%]", le)
+				if not long_end then
+					output ..= string.sub(source, pos)
+					break
+				end
+
+				output ..= string.sub(source, pos, long_end + 1)
+				pos = long_end + 2
+				continue
+			end
+		end
+
+		--skip normal strings (' " `)
+		do
+			local rs = string.find(source, "['\"`]", pos)
+
+
+			if rs and (not s or rs < s) then
+				local quote = string.sub(source, rs, rs)
+				local i = rs + 1
+				while i <= len do
+					local ch = string.sub(source, i, i)
+					if ch == "\\" then
+						i = i + 2
+					elseif ch == quote then
+						break
+					else
+						i += 1
+					end
+				end
+
+				output ..= string.sub(source, pos, i)
+				pos = i + 1
+				continue
+			end
+		end
+
+		--Handle include if found
+
+		if not s then
+			output ..= string.sub(source, pos)
+			break
+		end
+
+		-- dump normal text
+		output ..= string.sub(source, pos, e)
+		pos = e::number + 1
+
+		-- find file
+		local code_field
+		for _, v in Live_files do
+			if v.Title == key then
+				code_field = v.Code
+				break
+			end
+		end
+
+		if code_field then
+			if not visited[key::string] then
+				visited[key::string] = true
+				local expanded = UpdateInclude(code_field, visited)
+				visited[key::string] = nil
+				output ..= "\n" .. expanded .. "\n"
+			end
+		end
+
+		-- find matching close
+		local start_close, end_close = string.find(source, "%-%-\\include", pos)
+		if not start_close then
+			-- malformed include block -> just bail cleanly
+			break
+		end
+
+		output ..= string.sub(source, start_close, end_close)
+		pos = end_close::number + 1
+	end
+
+	return output
+end
+
+local function UpdateScriptHeaders(src:string):string
+	return UpdateInclude(src,{})
+end
+
 local function FuncSyncScriptHeaders():()
 	for _,parent in Iterate_List do
-		print(parent)
 		for ii,vv in GetDescendants(parent)::{Instance} do
 			if not IsA(vv,"LuaSourceContainer") then continue end
-
+			UpdateSourceAsync(ScriptEditorService,vv::LuaSourceContainer,UpdateScriptHeaders)
 		end
 	end
 end
@@ -1045,6 +1144,30 @@ Connect(GetProperty(ScriptAnalysis_Toggle,"MouseButton1Click")::RBXScriptSignal,
 	end
 	ScriptAnalysisEnabled = _Analysis
 end)
+Connect(GetProperty(Action_SyncHeaders,"Triggered")::RBXScriptSignal,FuncSyncScriptHeaders)
+Connect(GetProperty(Action_UpdateHeader,"Triggered")::RBXScriptSignal,function():()
+	local script_open = GetProperty(StudioService,"ActiveScript")::LuaSourceContainer?
+	if not script_open then warn("[Include]: no scripts open") return end
+	local document = FindScriptDocument(ScriptEditorService,script_open)
+	if not document then warn("[Include]: can't obtain script document") return end
+	local code = GetSelectedText(document)
+	local line1,_,line2 = GetSelection(document)
+	local line = math.min(line1,line2)
+	local current_key:string? = nil
+	for i=1,line-1 do
+		local s,e,key = string.find(GetLine(document,i), "%-%-#include%s*<([%w_%.]-)>")
+		current_key = key::string?
+	end
+	if current_key then
+		for i,v in Live_files do
+			if v.Title==current_key then
+				v.Code=code
+				break
+			end
+		end
+	end
+end)
+
 
 
 Connect(GetProperty(path,"Focused")::RBXScriptSignal,function():()
