@@ -1127,6 +1127,13 @@ local function FuncSyncScriptHeaders():()
 	for _,parent in Iterate_List do
 		for ii,vv in GetDescendants(parent)::{Instance} do
 			if not IsA(vv,"LuaSourceContainer") then continue end
+			local doc = FindScriptDocument(ScriptEditorService,vv::LuaSourceContainer)
+			if doc then
+				local CursorLine, CursorChar, AnchorLine, AnchorChar = GetSelection(doc)
+				UpdateSourceAsync(ScriptEditorService,vv::LuaSourceContainer,UpdateScriptHeaders)
+				task.spawn(ForceSetSelectionAsync,doc,CursorLine,CursorChar,AnchorLine,AnchorChar)
+				continue
+			end
 			UpdateSourceAsync(ScriptEditorService,vv::LuaSourceContainer,UpdateScriptHeaders)
 		end
 	end
