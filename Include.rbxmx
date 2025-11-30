@@ -2,7 +2,7 @@
 	<Meta name="ExplicitAutoJoints">true</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBX23988D3F6961413C96B2579C9D173D22">
+	<Item class="Script" referent="RBX0BBF4D1386894C2DA88B63FECE49A501">
 		<Properties>
 			<ProtectedString name="Source"><![CDATA[--!strict
 --!optimize 2
@@ -60,6 +60,7 @@ local UDim2_1_s10_0_0 = UDim2.new(1,-10,0,0)
 local HEADER_UDim2_0__45 = UDim2.fromScale(0.45,0)
 local HEADER_Button = UDim2.fromScale(0.183,1)
 
+local RegisterAutocompleteCallback:(service:ScriptEditorService,name: string, priority: number, callbackFunction: any)->()
 local ScriptAnalysisFunctionCallback:(req:Request_Analysis)->Response_Analysis
 local RegisterScriptAnalysisCallback:(service:ScriptEditorService,name: string, priority: number, callbackFunction: any)->()
 local DeregisterScriptAnalysisCallback:(service:ScriptEditorService,name: string)->()
@@ -101,6 +102,7 @@ CreatePluginAction = GetProperty(plugin,"CreatePluginAction")::typeof(CreatePlug
 GetPropertyChangedSignal = GetProperty(plugin,"GetPropertyChangedSignal")::typeof(GetPropertyChangedSignal)
 Get_Selection = GetProperty(Selection,"Get")::typeof(Get_Selection)
 Set_Selection = GetProperty(Selection,"Set")::typeof(Set_Selection)
+RegisterAutocompleteCallback = GetProperty(ScriptEditorService,"RegisterAutocompleteCallback")::typeof(RegisterAutocompleteCallback)
 RegisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"RegisterScriptAnalysisCallback")::typeof(RegisterScriptAnalysisCallback)
 DeregisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"DeregisterScriptAnalysisCallback")::typeof(DeregisterScriptAnalysisCallback)
 GetEditorSource = GetProperty(ScriptEditorService,"GetEditorSource")::typeof(GetEditorSource)
@@ -114,9 +116,9 @@ GetSelectedText = GetProperty(cmd,"GetSelectedText")::typeof(GetSelectedText)
 GetSelection = GetProperty(cmd,"GetSelection")::typeof(GetSelection)
 GetScript = GetProperty(cmd,"GetScript")::typeof(GetScript)
 GetLine = GetProperty(cmd,"GetLine")::typeof(GetLine)
-local _random_event_temp = GetProperty(plugin,"Unloading")
-Once = _random_event_temp.Once::typeof(Once)
-Connect = _random_event_temp.Connect::typeof(Connect)
+local Plugin_Unloading = GetProperty(plugin,"Unloading")
+Once = Plugin_Unloading.Once::typeof(Once)
+Connect = Plugin_Unloading.Connect::typeof(Connect)
 Destroy = GetProperty(plugin,"Destroy")::typeof(Destroy)
 SetProperty(widget,"Name","Include")
 SetProperty(widget,"Title","Include")
@@ -222,7 +224,6 @@ end
 --}
 local Import = Instance.new("TextButton") do
 	SetProperty(Import,"BackgroundColor3",Blue)
-	SetProperty(Import,"BorderColor3",Color3.new(0,0,0))
 	SetProperty(Import,"BorderSizePixel",0)
 	SetProperty(Import,"FontFace",FONT)
 	--NAME_SetProperty(Import,"Name","Import")
@@ -1243,8 +1244,7 @@ local include_item:item = {label="include";
 	--\include]]
 }
 
-
-ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",5,function(request:Request, response:Response):Response
+local function AutoCompletionCallback(request:Request, response:Response):Response
 	local txt_doc = request.textDocument
 	local doc,script = txt_doc.document,txt_doc.script
 	if not doc or not script or GetScript(doc)~=script then return response end
@@ -1285,7 +1285,7 @@ ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",5,function(reques
 	}
 	for i,v in Live_files do
 		local Title = v.Title
-		local textEdit = table.clone(textEditDetails)::textEdit
+		local textEdit = table.clone(textEditDetails::any)::textEdit
 		local label = "<"..Title..">"
 		(textEdit::any).newText=" "..label.."\n"..v.Code.."\n--\\include"
 		local include_header = table.clone(include_header)::item
@@ -1296,8 +1296,93 @@ ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",5,function(reques
 		table.insert(items,include_header)
 	end
 	return response
-end)
 
+end
+local __try,__err = pcall(RegisterAutocompleteCallback,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
+if not __try then
+	warn(__err)
+	local thread = coroutine.running()
+	local ColorSequence = ColorSequence.new(Color3.fromRGB(216,232,251),Color3.fromRGB(131,187,241))
+
+	local _scriptPermsMain = Instance.new("Frame") do
+		SetProperty(_scriptPermsMain,"BackgroundColor3",White_Color)
+		SetProperty(_scriptPermsMain,"BorderSizePixel",0)
+		SetProperty(_scriptPermsMain,"Name","_scriptPermsMain")
+		SetProperty(_scriptPermsMain,"Size",UDim2_one)
+	end
+	--[Children] {
+	local UIGradient = Instance.new("UIGradient") do
+		SetProperty(UIGradient,"Color",ColorSequence)
+		SetProperty(UIGradient,"Rotation",90)
+		SetProperty(UIGradient,"Parent",_scriptPermsMain)
+	end
+	local TextButton = Instance.new("TextButton") do
+		SetProperty(TextButton,"AnchorPoint",Vector2_Half)
+		SetProperty(TextButton,"BackgroundColor3",White_Color)
+		SetProperty(TextButton,"BorderSizePixel",0)
+		SetProperty(TextButton,"FontFace",FONT)
+		SetProperty(TextButton,"Position",UDim2.fromScale(0.5,0.75))
+		SetProperty(TextButton,"Size",UDim2.fromScale(0.5,0.15))
+		SetProperty(TextButton,"Text","Retry")
+		SetProperty(TextButton,"TextScaled",true)
+		SetProperty(TextButton,"ZIndex",2)
+		SetProperty(TextButton,"Parent",_scriptPermsMain)
+	end
+	--[Children] {
+	local UIGradient_1 = Instance.new("UIGradient") do
+		SetProperty(UIGradient_1,"Color",ColorSequence)
+		SetProperty(UIGradient_1,"Rotation",90)
+		SetProperty(UIGradient_1,"Parent",TextButton)
+	end
+	SetProperty(Instance.new("UICorner",TextButton),"CornerRadius",UDim10px)
+	--}
+	local ImageLabel = Instance.new("ImageLabel") do
+		SetProperty(ImageLabel,"AnchorPoint",Vector2_Half)
+		SetProperty(ImageLabel,"BackgroundTransparency",1)
+		SetProperty(ImageLabel,"Image","rbxassetid://101266206703626")
+		SetProperty(ImageLabel,"Position",UDim2.fromScale(0.5,0.35))
+		SetProperty(ImageLabel,"Size",UDim2.fromScale(0.6,0.6))
+		SetProperty(ImageLabel,"ZIndex",2)
+		SetProperty(ImageLabel,"Parent",_scriptPermsMain)
+	end
+	--[Children] {
+	Instance.new("UIAspectRatioConstraint",ImageLabel)
+	--}
+	local TextLabel = Instance.new("TextLabel") do
+		SetProperty(TextLabel,"AnchorPoint",Vector2.new(0.5,1))
+		SetProperty(TextLabel,"BackgroundTransparency",1)
+		SetProperty(TextLabel,"FontFace",FONT)
+		SetProperty(TextLabel,"Position",UDim2.fromScale(0.5,1))
+		SetProperty(TextLabel,"Size",UDim2.fromScale(1,0.15))
+		SetProperty(TextLabel,"Text","Denied script injection permission")
+		SetProperty(TextLabel,"TextColor3",Color3.fromRGB(255,255,0))
+		SetProperty(TextLabel,"TextScaled",true)
+		SetProperty(TextLabel,"ZIndex",2)
+		SetProperty(TextLabel,"Parent",_scriptPermsMain)
+	end
+	--}
+
+	SetProperty(_scriptPermsMain,"Parent",widget)
+	local temp = Once(Plugin_Unloading::RBXScriptSignal,function():()
+		Destroy(Main)
+		Destroy(_scriptPermsMain)
+	end)
+	local Disconnect:(RBXScriptConnection)->()
+	local connection:RBXScriptConnection
+	connection = Connect(GetProperty(TextButton,"MouseButton1Click")::RBXScriptSignal,function():()
+		local __try,err = pcall(RegisterAutocompleteCallback,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
+		if __try then
+			Disconnect(connection)
+			coroutine.resume(thread)
+			return
+		end
+		warn(err)
+	end)
+	Disconnect = connection.Disconnect::typeof(Disconnect)
+	coroutine.yield()
+	Destroy(_scriptPermsMain)
+	Disconnect(temp)
+end
 
 --analisys
 type Request_Analysis = {
@@ -1329,12 +1414,6 @@ type Diagnostics_Analysis = {
 
 
 
-if ScriptAnalysisEnabled then
-	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Green)
-	RegisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis",5,ScriptAnalysisFunctionCallback)
-else
-	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Red)
-end
 
 ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysis
 	local diagnostics:Diagnostics_Analysis_List = {}
@@ -1397,7 +1476,7 @@ ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysi
 				local nlStart, nlEnd = string.find(src,"\n",searchPos)
 				if not nlStart or nlStart >= s::number then break end
 				lineNum += 1
-				lastNewline = nlEnd
+				lastNewline = nlEnd::number
 				searchPos = nlEnd::number + 1
 			end
 
@@ -1439,7 +1518,7 @@ ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysi
 					local nlStart, nlEnd = string.find(src,"\n",searchPos)
 					if not nlStart or nlStart >= cs then break end
 					lineOffset += 1
-					lastNewline = nlEnd
+					lastNewline = nlEnd::number
 					searchPos = nlEnd::number + 1
 				end
 
@@ -1488,7 +1567,12 @@ ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysi
 end
 
 
-
+if ScriptAnalysisEnabled then
+	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Green)
+	RegisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis",5,ScriptAnalysisFunctionCallback)
+else
+	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Red)
+end
 
 local function UpdateScrollbar():()
 	local sizeY = GetVector2(GetProperty(UIListLayout_1,"AbsoluteContentSize"),"Y")
@@ -1533,7 +1617,7 @@ local connection = Connect(GetProperty(Studio,"ThemeChanged")::RBXScriptSignal,f
 		SetProperty(i,"BackgroundColor3",ItemColor)
 	end
 end)
-Once(GetProperty(plugin,"Unloading")::RBXScriptSignal,function():()
+Once(Plugin_Unloading::RBXScriptSignal,function():()
 	connection:Disconnect()
 	local tab_save = {Path=PATH_TO_SYNC;Analysis=ScriptAnalysisEnabled}
 	local headers = table.create(#LiveOrder_Ref)
