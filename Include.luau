@@ -24,10 +24,10 @@ local HttpService = GetService(game,"HttpService")::HttpService
 local ScriptEditorService = GetService(game,"ScriptEditorService")::ScriptEditorService
 local Selection = GetService(game,"Selection")::Selection
 
-
 local UDim2_one = UDim2.fromScale(1,1)
 local UDim2_0__45_0_1_0 = UDim2.fromScale(0.45,1)
 local UDim20__5_0__2 = UDim2.fromScale(0.5,0.2)
+local UDim20__5_0__1 = UDim2.fromScale(0.5,0.1) 
 local UDim20__5_0__267 = UDim2.fromScale(0.5,0.267)
 local UDim2_half = UDim2.fromScale(0.5,0.5)
 local List_Frame = UDim2.new(1,-12,0,45)
@@ -52,6 +52,9 @@ local UDim2_1_s10_0_0 = UDim2.new(1,-10,0,0)
 local HEADER_UDim2_0__45 = UDim2.fromScale(0.45,0)
 local HEADER_Button = UDim2.fromScale(0.183,1)
 
+local ScriptAnalysisFunctionCallback:(req:Request_Analysis)->Response_Analysis
+local RegisterScriptAnalysisCallback:(service:ScriptEditorService,name: string, priority: number, callbackFunction: any)->()
+local DeregisterScriptAnalysisCallback:(service:ScriptEditorService,name: string)->()
 local Connect:<A>(signal:RBXScriptSignal,func:A)->RBXScriptConnection
 local Once:<A>(signal:RBXScriptSignal,func:A)->RBXScriptConnection
 local Destroy:(ins:Instance)->()
@@ -71,6 +74,8 @@ local IsA:(Instance,string)->boolean
 local JSONDecode:(service:HttpService,string)->any
 local JSONEncode:(service:HttpService,table:any)->string
 local GetPropertyChangedSignal:(ins:Instance,property: string)->RBXScriptSignal
+local GetDescendants:(ins:Instance)->{Instance}
+
 xpcall(function():()
 	return (Vector2.zero::any)[nil]
 end,function():()
@@ -78,10 +83,13 @@ end,function():()
 end)
 JSONDecode = GetProperty(HttpService,"JSONDecode")
 JSONEncode = GetProperty(HttpService,"JSONEncode")
+GetDescendants = GetProperty(plugin,"GetDescendants")
 IsA = GetProperty(plugin,"IsA")
 GetPropertyChangedSignal = GetProperty(plugin,"GetPropertyChangedSignal")
 Get_Selection = GetProperty(Selection,"Get")
 Set_Selection = GetProperty(Selection,"Set")
+RegisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"RegisterScriptAnalysisCallback")
+DeregisterScriptAnalysisCallback = GetProperty(ScriptEditorService,"DeregisterScriptAnalysisCallback")
 GetEditorSource = GetProperty(ScriptEditorService,"GetEditorSource")
 GetScriptDocuments = GetProperty(ScriptEditorService,"GetScriptDocuments")
 OpenScriptDocumentAsync = GetProperty(ScriptEditorService,"OpenScriptDocumentAsync")
@@ -107,6 +115,8 @@ local try,ret = pcall(JSONDecode,HttpService,Data)
 if not try then
 	ret = {}::any
 end
+
+local ScriptAnalysisEnabled = ret.Analysis==true
 local PATH_TO_SYNC = ret.Path or ""
 local HEADERS_FILE = (ret.Headers or {{Title="Test";Code="--[[Hello im a test header]]"}})::{
 	[number]:{
@@ -213,13 +223,30 @@ local UIGradient_5 = Instance.new("UIGradient") do
 	SetProperty(UIGradient_5,"Parent",Import)
 end
 --}
+local ScriptAnalysis_Toggle = Instance.new("TextButton") do
+	SetProperty(ScriptAnalysis_Toggle,"BorderSizePixel",0)
+	SetProperty(ScriptAnalysis_Toggle,"FontFace",FONT)
+	--NAME_SetProperty(path,"Name","ScriptAnalysis")
+	SetProperty(ScriptAnalysis_Toggle,"Position",UDim2_05)
+	SetProperty(ScriptAnalysis_Toggle,"Size",UDim20__5_0__1)
+	SetProperty(ScriptAnalysis_Toggle,"Text","Script Analysis")
+	SetProperty(ScriptAnalysis_Toggle,"TextScaled",true)
+	SetProperty(ScriptAnalysis_Toggle,"Parent",Main)
+end
+--[Children] {
+local UIGradient_6 = Instance.new("UIGradient") do
+	SetProperty(UIGradient_6,"Color",Shade)
+	SetProperty(UIGradient_6,"Rotation",90)
+	SetProperty(UIGradient_6,"Parent",ScriptAnalysis_Toggle)
+end
+--}
 local path = Instance.new("TextBox") do
 	SetProperty(path,"BorderSizePixel",0)
 	SetProperty(path,"FontFace",FONT)
 	--NAME_SetProperty(path,"Name","path")
 	SetProperty(path,"PlaceholderText","game")
-	SetProperty(path,"Position",UDim2_05)
-	SetProperty(path,"Size",UDim20__5_0__2)
+	SetProperty(path,"Position",UDim2.fromScale(0.5,0.1))
+	SetProperty(path,"Size",UDim20__5_0__1)
 	SetProperty(path,"Text",PATH_TO_SYNC)
 	SetProperty(path,"TextScaled",true)
 	SetProperty(path,"ClearTextOnFocus",false)
@@ -443,6 +470,7 @@ SetProperty(Export,"TextColor3",BrightTextColor)
 SetProperty(Import,"TextColor3",BrightTextColor)
 SetProperty(NewFile,"TextColor3",BrightTextColor)
 SetProperty(path,"TextColor3",BrightTextColor)
+SetProperty(ScriptAnalysis_Toggle,"TextColor3",BrightTextColor)
 SetProperty(path,"PlaceholderColor3",DimmedTextColor)
 SetProperty(TextInputName,"PlaceholderColor3",DimmedTextColor)
 
@@ -785,7 +813,7 @@ local function InsertRawData(content:string):string
 	return rawData
 end
 Connect(GetProperty(Export,"MouseButton1Click")::RBXScriptSignal,function():()
-	local tab_save = {Path=PATH_TO_SYNC}
+	local tab_save = {Path=PATH_TO_SYNC;Analysis=ScriptAnalysisEnabled}
 	local headers = table.create(#LiveOrder_Ref)
 	for i,v in LiveOrder_Ref do
 		table.insert(headers,Live_files[v])
@@ -810,9 +838,9 @@ end
 Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 	if Importing_process then return end
 	Importing_process=true
-	
+
 	local module = Instance.new("ModuleScript")
-	
+
 	SetProperty(module,"Name","Importing...")
 	SetProperty(module,"Archivable",false)
 	SetProperty(module,"Parent",game)
@@ -831,7 +859,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 			Destroy(module)
 			return
 		end
-		local _Path,_Headers=tab.Path,tab.Headers
+		local _Path,_Headers,_Analysis=tab.Path,tab.Headers,tab.Analysis
 		if type(_Path)~="string" or type(_Headers)~="table" then
 			warn("Incorrect format.")
 			Destroy(module)
@@ -852,7 +880,15 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 			Iterate_List = {game}
 		end
 		SetProperty(path,"Text",_Path)
-		
+		if ScriptAnalysisEnabled==false and _Analysis==true then
+			RegisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis",5,ScriptAnalysisFunctionCallback)
+			SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Green)
+		elseif ScriptAnalysisEnabled==true and _Analysis==false then
+			DeregisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis")
+			SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Red)
+		end
+		ScriptAnalysisEnabled = _Analysis==true
+
 		for i in Live_files do
 			Destroy(i)
 		end
@@ -987,6 +1023,30 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 		Destroy(module)
 	end)
 end)
+local function FuncSyncScriptHeaders():()
+	for _,parent in Iterate_List do
+		print(parent)
+		for ii,vv in GetDescendants(parent)::{Instance} do
+			if not IsA(vv,"LuaSourceContainer") then continue end
+
+		end
+	end
+end
+
+Connect(GetProperty(Sync,"MouseButton1Click")::RBXScriptSignal,FuncSyncScriptHeaders)
+Connect(GetProperty(ScriptAnalysis_Toggle,"MouseButton1Click")::RBXScriptSignal,function():()
+	local _Analysis = not ScriptAnalysisEnabled
+	if ScriptAnalysisEnabled==false and _Analysis==true then
+		RegisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis",5,ScriptAnalysisFunctionCallback)
+		SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Green)
+	elseif ScriptAnalysisEnabled==true and _Analysis==false then
+		DeregisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis")
+		SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Red)
+	end
+	ScriptAnalysisEnabled = _Analysis
+end)
+
+
 Connect(GetProperty(path,"Focused")::RBXScriptSignal,function():()
 	SetProperty(path,"TextColor3",BrightTextColor)
 end)
@@ -1048,7 +1108,7 @@ local include_item:item = {label="include";
 }
 
 
-ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",1,function(request:Request, response:Response):Response
+ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",5,function(request:Request, response:Response):Response
 	local txt_doc = request.textDocument
 	local doc,script = txt_doc.document,txt_doc.script
 	if not doc or not script or GetScript(doc)~=script then return response end
@@ -1102,6 +1162,198 @@ ScriptEditorService:RegisterAutocompleteCallback("#Include_YS",1,function(reques
 	return response
 end)
 
+
+--analisys
+type Request_Analysis = {
+	["script"]: LuaSourceContainer,
+}
+
+type Response_Analysis = {
+	diagnostics:Diagnostics_Analysis_List
+}
+type Diagnostics_Analysis_List = {
+	[number]:Diagnostics_Analysis
+};
+type Diagnostics_Analysis = {
+	range: {
+		start: {
+			line: number,
+			character: number,
+		},
+		["end"]: {
+			line: number,
+			character: number,
+		},
+	},
+	code: string?,
+	message: string,
+	severity: Enum.Severity?,
+	codeDescription: { href: string }?,
+}
+
+
+
+if ScriptAnalysisEnabled then
+	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Green)
+	RegisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis",5,ScriptAnalysisFunctionCallback)
+else
+	SetProperty(ScriptAnalysis_Toggle,"BackgroundColor3",Red)
+end
+
+ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysis
+	local diagnostics:Diagnostics_Analysis_List = {}
+	local response:Response_Analysis = {diagnostics=diagnostics}
+
+	local src = GetEditorSource(ScriptEditorService,req.script)
+
+	local stack:{[number]:{line:number,char:number,key:string}} = {} -- simple stack: { line, char, key }
+	local stackLen = 0
+
+	local lineNum = 1
+	local pos = 1
+
+	while true do
+		local s,e,key = string.find(src, "%-%-#include%s*<([%w_%.]-)>", pos)
+		local cs,ce = string.find(src, "%-%-\\include", pos)
+		local ls, le = string.find(src, "%[%[", pos)
+
+		if ls and (not s or ls < s) and (not cs or ls < cs) then
+			local le_end = string.find(src, "%]%]", le)
+			if not le_end then break end
+			--fix linting name in string [[]] and "" captured
+			local le_end2 = le_end+2
+			local _, newlines = string.gsub(string.sub(src, pos, le_end), "\n", "")
+			lineNum += newlines
+			pos = le_end2 -- skip the long string
+			continue
+		end
+
+		-- check for regular strings '..." or `...`
+		local rs, re = string.find(src, "['\"`]", pos)
+		if rs and (not s or rs < s) and (not cs or rs < cs) then
+			local quote = string.sub(src, rs, rs)
+			local i = rs + 1
+			while i <= #src do
+				local ch = string.sub(src, i, i)
+				if ch == "\\" then
+					i += 2 -- skip escape
+				elseif ch == quote then
+					break
+				else
+					i += 1
+				end
+			end
+			local _, newlines = string.gsub(string.sub(src, pos, i), "\n", "")
+			lineNum += newlines
+			pos = i + 1 -- skip the string entirely
+			continue
+		end
+
+		-- pick the earliest match
+		if s and (not cs or s <= cs) then
+			-- count newlines up to match
+			--local _, newlines = string.gsub(string.sub(src, pos, s-1), "\n", "")
+			--lineNum = lineNum + newlines
+			local lastNewline = pos - 1
+			local searchPos = pos
+
+			while true do
+				local nlStart, nlEnd = string.find(src,"\n",searchPos)
+				if not nlStart or nlStart >= s::number then break end
+				lineNum += 1
+				lastNewline = nlEnd
+				searchPos = nlEnd::number + 1
+			end
+
+			local column = s - lastNewline::number
+
+			-- include opener
+			stackLen = stackLen + 1
+			stack[stackLen] = {line = lineNum, char = column, key = key::string}
+
+			--scan key
+			if key then
+				local found:boolean = false
+				for i,v in Live_files do
+					if v.Title==key then found=true break end
+				end
+				if not found then
+					local _,start_pos = string.find(src,"%-%-#include%s*<",s)
+
+					table.insert(diagnostics, {
+						range = {
+							start = { line = lineNum, character = start_pos::number-lastNewline::number },
+							["end"]  = { line = lineNum, character = column + (e::number - s::number)+1 },
+						},
+						code="Header Missing",
+						message = "Header not found",
+						severity = Enum.Severity.Hint,
+					}::Diagnostics_Analysis)
+				end
+			end
+			pos = e::number + 1
+		elseif cs then
+			-- include closer
+			if stackLen == 0 then
+				local lineOffset = 0
+				local lastNewline = pos - 1
+				local searchPos = pos
+
+				while true do
+					local nlStart, nlEnd = string.find(src,"\n",searchPos)
+					if not nlStart or nlStart >= cs then break end
+					lineOffset += 1
+					lastNewline = nlEnd
+					searchPos = nlEnd::number + 1
+				end
+
+				local column = cs - lastNewline::number
+				local line = lineNum + lineOffset
+
+				table.insert(diagnostics, {
+					range = {
+						start = { line = line, character = column },
+						["end"]  = { line = line, character = column + (ce::number - cs)+1 },
+					},
+					code = "Syntax Error",
+					message = "Closing --\\include with no matching --#include",
+					severity = Enum.Severity.Warning,
+				}::Diagnostics_Analysis)
+			else
+				stack[stackLen] = nil
+				stackLen -= 1
+			end
+
+			-- count newlines up to match
+			local _, newlines = string.gsub(string.sub(src, pos, cs-1), "\n", "")
+			lineNum = lineNum + newlines
+
+			pos = ce::number + 1
+		else
+			break
+		end
+	end
+
+	-- report unclosed includes
+	for _, open in stack do
+		table.insert(diagnostics,{
+			range = {
+				start = { line = open.line, character = open.char },
+				["end"] = { line = open.line, character = open.char + 10},
+			},
+			code = "Syntax Error",
+			message = "Unclosed include "..open.key::string.." - missing --\\include",
+			severity = Enum.Severity.Warning,
+		}::Diagnostics_Analysis)
+	end
+
+
+	return response
+end
+
+
+
+
 local function UpdateScrollbar():()
 	local sizeY = GetVector2(GetProperty(UIListLayout_1,"AbsoluteContentSize"),"Y")
 	SetProperty(ScrollingFrame,"CanvasSize",UDim2.fromOffset(0,sizeY))
@@ -1134,6 +1386,7 @@ local connection = Connect(GetProperty(Studio,"ThemeChanged")::RBXScriptSignal,f
 	SetProperty(Import,"TextColor3",BrightTextColor)
 	SetProperty(NewFile,"TextColor3",BrightTextColor)
 	SetProperty(path,"TextColor3",BrightTextColor)
+	SetProperty(ScriptAnalysis_Toggle,"TextColor3",BrightTextColor)
 	SetProperty(path,"PlaceholderColor3",DimmedTextColor)
 	SetProperty(TextInputName,"PlaceholderColor3",DimmedTextColor)
 
@@ -1146,7 +1399,7 @@ local connection = Connect(GetProperty(Studio,"ThemeChanged")::RBXScriptSignal,f
 end)
 Once(GetProperty(plugin,"Unloading")::RBXScriptSignal,function():()
 	connection:Disconnect()
-	local tab_save = {Path=PATH_TO_SYNC}
+	local tab_save = {Path=PATH_TO_SYNC;Analysis=ScriptAnalysisEnabled}
 	local headers = table.create(#LiveOrder_Ref)
 	for i,v in LiveOrder_Ref do
 		headers[i]=Live_files[v]
@@ -1155,6 +1408,9 @@ Once(GetProperty(plugin,"Unloading")::RBXScriptSignal,function():()
 	local res = JSONEncode(HttpService,tab_save)
 	plugin:SetSetting("Include_Plugin_YS",res)
 	ScriptEditorService:DeregisterAutocompleteCallback("#Include_YS")
+	if ScriptAnalysisEnabled then
+		DeregisterScriptAnalysisCallback(ScriptEditorService,"Include_YS_Analysis")
+	end
 end)
 
 SetProperty(Main,"Parent",widget)
