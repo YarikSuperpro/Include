@@ -25,6 +25,7 @@ local HttpService = GetService(game,"HttpService")::HttpService
 local ScriptEditorService = GetService(game,"ScriptEditorService")::ScriptEditorService
 local Selection = GetService(game,"Selection")::Selection
 local StudioService = GetService(game,"StudioService")::StudioService
+local ChangeHistoryService = GetService(game,"ChangeHistoryService")::ChangeHistoryService
 
 local UDim2_one = UDim2.fromScale(1,1)
 local UDim2_0__45_0_1_0 = UDim2.fromScale(0.45,1)
@@ -81,13 +82,18 @@ local GetPropertyChangedSignal:(ins:Instance,property: string)->RBXScriptSignal
 local GetDescendants:(ins:Instance)->{Instance}
 local CreatePluginAction:(plugin:Plugin,actionId: string, text: string, statusTip: string, 
 	iconName: string?, allowBinding: boolean?)->PluginAction
-
+local TryBeginRecording:(service:ChangeHistoryService,name: string, displayName: string?)->string?
+local FinishRecording:(service:ChangeHistoryService,identifier: string, operation: 
+Enum.FinishRecordingOperation, finalOptions: { [string]: any }?)->()
 
 xpcall(function():()
 	return (Vector2.zero::any)[nil]
 end,function():()
 	GetVector2 = debug.info(2,"f")::typeof(GetVector2)
 end)
+
+FinishRecording = GetProperty(ChangeHistoryService,"FinishRecording")::typeof(FinishRecording)
+TryBeginRecording = GetProperty(ChangeHistoryService,"TryBeginRecording")::typeof(TryBeginRecording)
 JSONDecode = GetProperty(HttpService,"JSONDecode")::typeof(JSONDecode)
 JSONEncode = GetProperty(HttpService,"JSONEncode")::typeof(JSONEncode)
 GetDescendants = GetProperty(plugin,"GetDescendants")::typeof(GetDescendants)
@@ -1125,6 +1131,11 @@ local function UpdateScriptHeaders(src:string):string
 end
 
 local function FuncSyncScriptHeaders():()
+	local RecordingKey = TryBeginRecording(ChangeHistoryService,"Include_YS_Sync_Write","Sync Headers")
+	if not RecordingKey then
+		warn("[Include]: Unable to start the recording")
+		return
+	end
 	for _,parent in Iterate_List do
 		for ii,vv in GetDescendants(parent)::{Instance} do
 			if not IsA(vv,"LuaSourceContainer") then continue end
@@ -1138,6 +1149,7 @@ local function FuncSyncScriptHeaders():()
 			UpdateSourceAsync(ScriptEditorService,vv::LuaSourceContainer,UpdateScriptHeaders)
 		end
 	end
+	FinishRecording(ChangeHistoryService,RecordingKey,Enum.FinishRecordingOperation.Commit)
 end
 
 Connect(GetProperty(Sync,"MouseButton1Click")::RBXScriptSignal,FuncSyncScriptHeaders)
@@ -1292,7 +1304,7 @@ local function AutoCompletionCallback(request:Request, response:Response):Respon
 	return response
 
 end
-local __try,__err = pcall(RegisterAutocompleteCallback,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
+local __try,__err = pcall(RegisterAutocompleteCallback::any,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
 if not __try then
 	warn(__err)
 	local thread = coroutine.running()
@@ -1364,7 +1376,7 @@ if not __try then
 	local Disconnect:(RBXScriptConnection)->()
 	local connection:RBXScriptConnection
 	connection = Connect(GetProperty(TextButton,"MouseButton1Click")::RBXScriptSignal,function():()
-		local __try,err = pcall(RegisterAutocompleteCallback,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
+		local __try,err = pcall(RegisterAutocompleteCallback::any,ScriptEditorService,"#Include_YS",5,AutoCompletionCallback)
 		if __try then
 			Disconnect(connection)
 			coroutine.resume(thread)
