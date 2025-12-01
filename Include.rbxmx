@@ -2,7 +2,7 @@
 	<Meta name="ExplicitAutoJoints">true</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXEE638E17BF8F49D386B1E8D3AEE9600A">
+	<Item class="Script" referent="RBX62D6C3C2B01249FDB40E87012F386180">
 		<Properties>
 			<ProtectedString name="Source"><![CDATA[--!strict
 --!optimize 2
@@ -22,7 +22,7 @@ end,function():()
 end)
 GetService = GetProperty(game,"GetService")::typeof(GetService)
 local RunService = GetService(game,"RunService")::RunService
-if RunService:IsClient() and RunService:IsRunning() then return end
+if not RunService:IsEdit() then return end
 local toolbar = plugin:CreateToolbar("Include")
 local button = toolbar:CreateButton("Include_OpenUI_Plugin","Open UI","rbxassetid://103819211315258","Open UI")
 
