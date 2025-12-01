@@ -16,7 +16,7 @@ end,function():()
 end)
 GetService = GetProperty(game,"GetService")::typeof(GetService)
 local RunService = GetService(game,"RunService")::RunService
-if RunService:IsClient() and RunService:IsRunning() then return end
+if not RunService:IsEdit() then return end
 local toolbar = plugin:CreateToolbar("Include")
 local button = toolbar:CreateButton("Include_OpenUI_Plugin","Open UI","rbxassetid://103819211315258","Open UI")
 
