@@ -606,6 +606,7 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 			if document then
 				local text = GetSelectedText(document)::string
 				profile.Code=text
+				return
 			end
 		end
 		for i,v in Get_Selection(Selection) do
@@ -740,6 +741,7 @@ for i,v in HEADERS_FILE do
 			if document then
 				local text = GetSelectedText(document)::string
 				profile.Code=text
+				return
 			end
 		end
 		for i,v in Get_Selection(Selection) do
@@ -983,6 +985,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 					if document then
 						local text = GetSelectedText(document)::string
 						profile.Code=text
+						return
 					end
 				end
 				for i,v in Get_Selection(Selection) do
