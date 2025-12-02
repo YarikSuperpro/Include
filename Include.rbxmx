@@ -2,7 +2,7 @@
 	<Meta name="ExplicitAutoJoints">true</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBX62D6C3C2B01249FDB40E87012F386180">
+	<Item class="Script" referent="RBX3DF7C7596B2D4B8983E20DBA0DC05027">
 		<Properties>
 			<ProtectedString name="Source"><![CDATA[--!strict
 --!optimize 2
@@ -612,6 +612,7 @@ Connect(GetProperty(TextButton_YES,"MouseButton1Click")::RBXScriptSignal,functio
 			if document then
 				local text = GetSelectedText(document)::string
 				profile.Code=text
+				return
 			end
 		end
 		for i,v in Get_Selection(Selection) do
@@ -746,6 +747,7 @@ for i,v in HEADERS_FILE do
 			if document then
 				local text = GetSelectedText(document)::string
 				profile.Code=text
+				return
 			end
 		end
 		for i,v in Get_Selection(Selection) do
@@ -989,6 +991,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 					if document then
 						local text = GetSelectedText(document)::string
 						profile.Code=text
+						return
 					end
 				end
 				for i,v in Get_Selection(Selection) do
