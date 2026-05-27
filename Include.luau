@@ -2301,12 +2301,13 @@ local Local_Headers = {}::{
 	}
 }
 
-local UpdateInclude:(source:string, visited:{[string]:true})->string
-UpdateInclude = function(source:string, visited:{[string]:true}):string
+local UpdateInclude:(source:string, visited:{[string]:true})->string?
+UpdateInclude = function(source:string, visited:{[string]:true}):string?
 	local output = ""
 	local pos = 1
 	local len = #source
-
+	
+	
 	while pos <= len do
 		--skip long strings [[ ... ]]
 		local s, e, key = string.find(source, "%-%-#include%s*<([%w_%.]-)>", pos)
@@ -2385,7 +2386,7 @@ UpdateInclude = function(source:string, visited:{[string]:true}):string
 		pos = end_close::number + 1
 	end
 
-	return output
+	return nil
 end
 
 local UpdateScriptHeaders = function(src:string):string
