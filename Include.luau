@@ -2837,31 +2837,39 @@ local AutoCompletionCallback = function(request:Request, response:Response):Resp
 			detail = "Header";preselect=true;
 		}
 		local t_count = string.rep("\t",WhiteSpace_len_true::number)
-		local nt = "\n"..t_count
+		local n = "\n"
+		local nt = n..t_count
 
 		local checkLocals = Local_Headers[script]
+
+		local space = " "
+		local less = "<"
+		local more = ">"
+		local file = " file"
+		local local_space = "(local) "
+
 		if checkLocals then
 			for i,v in checkLocals do
 				local textEdit = table.clone(textEditDetails::any)::textEdit
-				local label = "<"..i..">"
-				(textEdit::any).newText=" "..label..nt..string.gsub(v,"\n",nt).."\n"..t_count.."--\\include"
+				local label = less..i..more
+				;(textEdit::any).newText=space..label..nt..string.gsub(v,n,nt)..n..t_count.."--\\include"
 				local include_header = table.clone(include_header)::item
 				include_header.label=label
 				include_header.textEdit=textEdit
 				include_header.codeSample=v
-				include_header.documentation = {value="(local) "..i.." file"};
+				include_header.documentation = {value=local_space..i..file};
 				table.insert(items,include_header)
 			end
 		end
 		for i,v in Header_List_Code do
 			local textEdit = table.clone(textEditDetails::any)::textEdit
-			local label = "<"..i..">"
-			(textEdit::any).newText=" "..label..nt..string.gsub(v,"\n",nt).."\n"..t_count.."--\\include"
+			local label = less..i..more
+			;(textEdit::any).newText=space..label..nt..string.gsub(v,n,nt)..n..t_count.."--\\include"
 			local include_header = table.clone(include_header)::item
 			include_header.label=label
 			include_header.textEdit=textEdit
 			include_header.codeSample=v
-			include_header.documentation = {value=i.." file"};
+			include_header.documentation = {value=i..file};
 			table.insert(items,include_header)
 		end
 		return response
@@ -3047,7 +3055,10 @@ local ScriptAnalysisFunctionCallback = function(req: Request_Analysis): Response
 	local char_less = "<"
 
 	local char_close_include = "%-%-%[?=*%[?\\include%]?=*%]?"
-	local char_open_include = "--%[?=*%[?#include%s*<([^>]*)>%]?=*%]?"
+	local char_open_include1 = "--%[?=*%[?#include%s*<"
+	local char_open_include2 = "^([^>]*)"
+	local char_open_include3 = "^>%]?=*%]?"
+
 	local char_header = "--#header%s*<([^>]*)>"
 
 	local char_Syntax_Error = "Syntax Error"
@@ -3180,10 +3191,22 @@ local ScriptAnalysisFunctionCallback = function(req: Request_Analysis): Response
 		local whitespace_pos = whitespace_end_true::number+1
 
 		local cs,ce = string.find(source,char_close_include,whitespace_pos)
-		local inc,inc_end,key = string.find(source,char_open_include,whitespace_pos)
-		
+		local inc,inc1_end = string.find(source,char_open_include1,whitespace_pos)
+		local inc2:number?
+		local inc2_end:number?
+		local key:string
+
+		local inc3:number?
+		local inc_end:number?
+		if inc1_end then
+			inc2,inc2_end,key = string.find(source,char_open_include2,inc1_end::number+1)
+			if inc2_end then
+				inc3,inc_end = string.find(source,char_open_include3,inc2_end::number+1)
+			end
+		end
+
 		local header,header_end,header_name = string.find(source,char_header,whitespace_pos)
-		if not cs and not inc and not header then break end
+		if not cs and not inc_end and not header then break end
 		local i = string.find(source,UniversalPattern,whitespace_pos)
 
 		local best = newline
@@ -3191,7 +3214,7 @@ local ScriptAnalysisFunctionCallback = function(req: Request_Analysis): Response
 
 		if i and i<best then best = i;kind=1 end
 		if cs and cs<best then best = cs;kind=2 end
-		if inc and inc<best then best = inc;kind=3 end
+		if inc_end and (inc::number)<best then best = inc::number;kind=3 end
 		if header and header<best then best = header;kind=4 end
 
 		if best >= newline then
@@ -3263,8 +3286,7 @@ local ScriptAnalysisFunctionCallback = function(req: Request_Analysis): Response
 			stack[depth]=buff
 			buff = buffer.create(8+#key::string)
 			buffer.writeu32(buff,0,parse_line)
-			local line = string.find(source,char_less..key,inc)::number
-			buffer.writeu32(buff,4,line-start_line::number)
+			buffer.writeu32(buff,4,inc1_end::number-start_line::number)
 			buffer.writestring(buff,8,key::string)
 			includes[includes_i]=buff
 			ptr = inc_end::number+1
