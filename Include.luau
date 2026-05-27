@@ -122,7 +122,7 @@ local GetScript:(ScriptDocument)->LuaSourceContainer
 local GetLine:(ScriptDocument,number)->string
 local ForceSetSelectionAsync:(ScriptDocument,cursorLine: number, cursorCharacter: number, anchorLine: number?, anchorCharacter: number?)->...any
 local GetScriptDocuments = GetProperty(ScriptEditorService,"GetScriptDocuments")::(service:ScriptEditorService)->{ScriptDocument}
-local cmd = GetScriptDocuments(ScriptEditorService)[1]::ScriptDocument
+local cmd:any = GetScriptDocuments(ScriptEditorService)[1]::ScriptDocument
 if cmd then
 	ForceSetSelectionAsync = GetProperty(cmd,"ForceSetSelectionAsync")::typeof(ForceSetSelectionAsync)
 	GetSelectedText = GetProperty(cmd,"GetSelectedText")::typeof(GetSelectedText)
@@ -159,6 +159,8 @@ end
 Connect(GetProperty(button,"Click")::RBXScriptSignal,function():()
 	SetProperty(Widget,"Enabled",not GetProperty(Widget,"Enabled")::boolean)
 end)
+
+cmd = {}::{[LuaSourceContainer]:RBXScriptConnection}
 
 local FindScriptDocument = GetProperty(ScriptEditorService,"FindScriptDocument")::(service:ScriptEditorService,script:LuaSourceContainer)->ScriptDocument
 local GetEditorSource = GetProperty(ScriptEditorService,"GetEditorSource")::(service:ScriptEditorService,script:LuaSourceContainer)->string
@@ -1721,6 +1723,7 @@ Connect(GetProperty(NewHeader,"MouseButton1Click")::RBXScriptSignal,function():(
 	Connect(GetProperty(Ok,"MouseButton1Click"),function():()
 		local SetProperty = SetProperty
 		local text = string.sub(GetProperty(InputField,"Text")::string,1,255)
+		text = string.gsub(text,"[<>]","")
 		if Header_List_Code[text] or Header_Lower[string.lower(text)] then
 			warn("[Include]: This name already exists!")
 			local _Window,_Bar = CreateWindow("Duplicate Name Error")
@@ -2250,7 +2253,7 @@ Connect(GetProperty(Export,"MouseButton1Click")::RBXScriptSignal,function():()
 		local i=0
 		for Name,Code in Header_List_Code do
 			i+=1
-			Headers[i] = {Title=Name;Code=Code}
+			Headers[i] = {Title=Name;Code = Code}
 		end
 		local json = JSONEncode(HttpService,{
 			Path = Path_String;
@@ -2799,7 +2802,9 @@ local AutoCompletionCallback = function(request:Request, response:Response):Resp
 	local line_n = position.line
 	local char_position = position.character
 	local line = GetLine(doc,line_n)
-	local inc,inc_end = string.find(line,"^%s*%-?%-?#?incl?u?d?e?")
+	local WhiteSpace,WhiteSpace_len_true = string.find(line,"^\t*")
+	local WhiteSpace_len = WhiteSpace_len_true::number + 1
+	local inc,inc_end = string.find(line,"^%-?%-?#?incl?u?d?e?",WhiteSpace_len)
 	if inc then
 		if IsInsideString(GetEditorSource(ScriptEditorService,script),line_n,char_position,line) then return response end
 		inc_end = (inc_end::number)+1
@@ -2831,24 +2836,27 @@ local AutoCompletionCallback = function(request:Request, response:Response):Resp
 			tags={Enum.CompletionItemTag.TypeCorrect};
 			detail = "Header";preselect=true;
 		}
+		local t_count = string.rep("\t",WhiteSpace_len_true::number)
+		local nt = "\n"..t_count
+
 		local checkLocals = Local_Headers[script]
 		if checkLocals then
 			for i,v in checkLocals do
 				local textEdit = table.clone(textEditDetails::any)::textEdit
 				local label = "<"..i..">"
-				(textEdit::any).newText=" "..label.."\n"..v.."\n--\\include"
+				(textEdit::any).newText=" "..label..nt..string.gsub(v,"\n",nt).."\n"..t_count.."--\\include"
 				local include_header = table.clone(include_header)::item
 				include_header.label=label
 				include_header.textEdit=textEdit
 				include_header.codeSample=v
-				include_header.documentation = {value=i.." file"};
+				include_header.documentation = {value="(local) "..i.." file"};
 				table.insert(items,include_header)
 			end
 		end
 		for i,v in Header_List_Code do
 			local textEdit = table.clone(textEditDetails::any)::textEdit
 			local label = "<"..i..">"
-			(textEdit::any).newText=" "..label.."\n"..v.."\n--\\include"
+			(textEdit::any).newText=" "..label..nt..string.gsub(v,"\n",nt).."\n"..t_count.."--\\include"
 			local include_header = table.clone(include_header)::item
 			include_header.label=label
 			include_header.textEdit=textEdit
@@ -2858,23 +2866,24 @@ local AutoCompletionCallback = function(request:Request, response:Response):Resp
 		end
 		return response
 	end
-	local hea,hea_end = string.find(line,"^%s*%-?%-?#?head?e?r?")
+	local hea,hea_end = string.find(line,"^%-?%-?#?head?e?r?",WhiteSpace_len)
 	if hea then
 		if char_position>(hea_end::number)+1 then return response end
 		if IsInsideString(GetEditorSource(ScriptEditorService,script),line_n,char_position,line) then return response end
 		hea_end = (hea_end::number)+1
+		local t_count = string.rep("\t",WhiteSpace_len_true::number)
+		local nt = "\n"..t_count
 		local header_item:item = {label="header";
 			kind=Enum.CompletionItemKind.Keyword;
 			detail = "Local Header Keyword";
 			documentation = {value="Per script custom header"};
-			codeSample = [==[--#header <MyHeader>
---[[
-	print("Auto sync me please")
-]]
-]==]
+			codeSample = "--#header <MyHeader>\n\z
+--[[\z
+\tprint(\"Auto sync me please\")\n\z
+]]"
 		}
 		local tab:start_end = {start={line=line_n,character=hea};["end"]={line=line_n,character=hea_end::number}}
-		header_item.textEdit = {insert=tab,replace=tab,newText="--#header <Header>\n--[==[\n\t\n]==]"}
+		header_item.textEdit = {insert=tab,replace=tab,newText="--#header <Header>"..nt.."--[==["..nt.."\t"..nt.."]==]"}
 		table.insert(response.items,header_item)
 		return response
 	end
@@ -2994,163 +3003,374 @@ type Diagnostics_Analysis = {
 
 
 
-local ScriptAnalysisFunctionCallback = function(req:Request_Analysis):Response_Analysis
-	local Local_Headers = Local_Headers
-	local diagnostics:Diagnostics_Analysis_List = {}
-	local response:Response_Analysis = {diagnostics=diagnostics}
+local ScriptAnalysisFunctionCallback = function(req: Request_Analysis): Response_Analysis
+	local diagnostics: Diagnostics_Analysis_List = {}
+	local response: Response_Analysis = { diagnostics = diagnostics }
+
 	local script = req.script
+
 	local local_header = Local_Headers[script]
 	if not local_header then
 		local_header = {}
-		Local_Headers[script]=local_header
-		Once(GetPropertyChangedSignal(script,"Parent"),function():()
-			Local_Headers[script]=nil
+		Local_Headers[script] = local_header
+		cmd[script] = Once(GetPropertyChangedSignal(script,"Parent"),function()
+			Local_Headers[script] = nil
+			cmd[script] = nil
 		end)
 	end
 
-	local src = GetEditorSource(ScriptEditorService,script)
+	table.clear(local_header)
 
-	local stack:{[number]:{line:number,char:number,key:string}} = {} -- simple stack: { line, char, key }
-	local stackLen = 0
+	local source = GetEditorSource(ScriptEditorService, script)
+	local len = #source
 
-	local lineNum = 1
-	local pos = 1
+	local ptr = 1
+	local parse_line = 1
 
-	while true do
-		local s,e,key = string.find(src, "%-%-#include%s*<([%w_%.]-)>", pos)
-		local cs,ce = string.find(src, "%-%-\\include", pos)
-		local ls, le = string.find(src, "%[%[", pos)
+	local NewLineBreak = "\n"
+	local MatchCase = "%[=*%["
+	local MatchCase_Comment = "%-%-%[(=*)%["
+	local char1 = "]"
+	local char2 = "="
 
-		if ls and (not s or ls < s) and (not cs or ls < cs) then
-			local le_end = string.find(src, "%]%]", le)
-			if not le_end then break end
-			--fix linting name in string [[]] and "" captured
-			local le_end2 = le_end+2
-			local _, newlines = string.gsub(string.sub(src, pos, le_end), "\n", "")
-			lineNum += newlines
-			pos = le_end2 -- skip the long string
+	local char3 = "\""
+	local char4 = "'"
+	local char5 = "`"
+	local UniversalPattern = "[\"'`%[]"
+	local StringOnlyPattern = "[\"'`]"
+
+	local whitespace_pattern = "\t*"
+
+	local t_sign = "\t"
+	local t_sign_question = "\t?"
+	local dollar = "$"
+	local char_less = "<"
+
+	local char_close_include = "%-%-%[?=*%[?\\include%]?=*%]?"
+	local char_open_include = "--%[?=*%[?#include%s*<([^>]*)>%]?=*%]?"
+	local char_header = "--#header%s*<([^>]*)>"
+
+	local char_Syntax_Error = "Syntax Error"
+	local char_End = "end"
+	local char_Start = "start"
+	local char_line = "line"
+	local char_range = "range"
+	local char_character = "character"
+	local char_code = "code"
+	local char_message = "message"
+	local char_severity = "severity"
+	local kind2_Error_Message = "Closing --\\include with no matching --#include"
+	local char_header_without_content = "Header without content"
+	local char_uncloded_inclue = "Unclosed include - missing --\\include"
+	local char_header_missing = "Header Missing"
+	local char_header_not_found = "Header not found"
+
+	local captured = false -- [[]]
+	local findMatch:string
+	local string_capture_upper = false--""
+	local string_capture_lower = false--''
+	local string_capture_interpl = false--``
+
+	local depth = 0
+	local stack = table.create(8)::{[number]:buffer}--{u32 line,u32 char,u32 char_end}
+	local includes = table.create(16)::{[number]:buffer}--{u32 line,u32 char,key}
+	local includes_i = 0
+	local start_line:number = 1
+
+	while ptr < len do
+		local newline:number = string.find(source,NewLineBreak,ptr,true)::number
+		if not newline then break end
+
+		if string_capture_interpl then--` interpolation close
+			local close_i,close_e = string.find(source,char5,ptr)
+			if close_i and close_i < newline then
+
+				local i = close_i-1
+				if string.byte(source,i)==92 then
+					local n = 0
+					while string.byte(source,i)==92 do
+						i-=1
+						n+=1
+					end
+					if not bit32.btest(n,0b1) then
+						string_capture_interpl=false
+
+						ptr=(close_e::number)+1
+						continue
+					end
+
+					ptr=(close_e::number)+1
+					continue
+				end
+
+				string_capture_interpl=false
+				ptr=(close_e::number)+1
+				continue
+			end
+			ptr=newline+1
+			parse_line+=1
+			continue
+		elseif captured then--] ]
+			local close_i,close_e = string.find(source,findMatch,ptr,true)
+
+			if close_i and close_i < newline then
+				captured=false
+				ptr=(close_e::number)+1
+				continue
+			end
+
+			ptr=newline+1
+			parse_line+=1
+			continue
+		elseif string_capture_upper then--" close
+			local close_i,close_e = string.find(source,char3,ptr)
+			if close_i and close_i < newline then
+				local i = close_i-1
+				if string.byte(source,i)==92 then
+					local n = 0
+					while string.byte(source,i)==92 do
+						i-=1
+						n+=1
+					end
+					if not bit32.btest(n,0b1) then
+						string_capture_upper=false
+						ptr=(close_e::number)+1
+						continue
+					end
+					ptr=(close_e::number)+1
+					continue
+				end
+				string_capture_upper=false
+				ptr=(close_e::number)+1
+				continue
+			end
+			ptr=newline+1
+			parse_line+=1
+			continue
+		elseif string_capture_lower then--' lower close
+			local close_i,close_e = string.find(source,char4,ptr)
+			if close_i and close_i < newline then
+				local i = close_i-1
+				if string.byte(source,i)==92 then
+					local n = 0
+					while string.byte(source,i)==92 do
+						i-=1
+						n+=1
+					end
+					if not bit32.btest(n,0b1) then
+						string_capture_lower=false
+						ptr=(close_e::number)+1
+						continue
+					end
+					ptr=(close_e::number)+1
+					continue
+				end
+				string_capture_lower=false
+				ptr=(close_e::number)+1
+				continue
+			end
+			ptr=newline+1
+			parse_line+=1
 			continue
 		end
 
-		-- check for regular strings '..." or `...`
-		local rs, re = string.find(src, "['\"`]", pos)
-		if rs and (not s or rs < s) and (not cs or rs < cs) then
-			local quote = string.sub(src, rs, rs)
-			local i = rs + 1
-			while i <= #src do
-				local ch = string.sub(src, i, i)
-				if ch == "\\" then
-					i += 2 -- skip escape
-				elseif ch == quote then
-					break
+
+		--	[[Openers]]
+		local whitespace,whitespace_end_true = string.find(source,whitespace_pattern,ptr)
+		local whitespace_pos = whitespace_end_true::number+1
+
+		local cs,ce = string.find(source,char_close_include,whitespace_pos)
+		local inc,inc_end,key = string.find(source,char_open_include,whitespace_pos)
+		
+		local header,header_end,header_name = string.find(source,char_header,whitespace_pos)
+		if not cs and not inc and not header then break end
+		local i = string.find(source,UniversalPattern,whitespace_pos)
+
+		local best = newline
+		local kind:number--1 string,2 - closure include, 3 - open include 4 - header
+
+		if i and i<best then best = i;kind=1 end
+		if cs and cs<best then best = cs;kind=2 end
+		if inc and inc<best then best = inc;kind=3 end
+		if header and header<best then best = header;kind=4 end
+
+		if best >= newline then
+			ptr = newline + 1
+			start_line = ptr
+			parse_line += 1
+			continue
+		end
+
+		if kind==1 then
+			local b = string.byte(source,i)
+			if b==91 then--[
+				--Ensure its a %[=*%[
+				local t,e = string.find(source,MatchCase,i)
+				local stringPatternSearch = string.find(source,StringOnlyPattern,ptr)
+				if not t or t > newline or (stringPatternSearch and (stringPatternSearch < t)) then
+					i = stringPatternSearch
+					if not i or i > newline then
+						ptr=newline+1
+						parse_line+=1
+						continue
+					end
+					b = string.byte(source,i)
 				else
-					i += 1
+					--Safe [[]]
+					captured=true
+					findMatch = char1..string.rep(char2,(e::number)-(t::number)-1)..char1
+					ptr=(e::number)+1
+					continue
 				end
 			end
-			local _, newlines = string.gsub(string.sub(src, pos, i), "\n", "")
-			lineNum += newlines
-			pos = i + 1 -- skip the string entirely
+			if b==34 then--"
+				string_capture_upper=true
+				ptr=(i::number)+1
+				continue
+			elseif b==39 then--'
+				string_capture_lower=true
+				ptr=(i::number)+1
+				continue
+			end
+			string_capture_interpl=true
+			ptr=(i::number)+1
+			continue
+		elseif kind==2 then
+			if depth==0 then
+				--error
+				table.insert(diagnostics, {
+					[char_range] = {
+						[char_Start] = {[char_line] = parse_line,[char_character] = cs::number-start_line::number + 1};
+						[char_End]  = {[char_line] = parse_line,[char_character] = ce::number-start_line + 2};
+					},
+					[char_code] = char_Syntax_Error,
+					[char_message] = kind2_Error_Message,
+					[char_severity] = Enum.Severity.Warning,
+				}::Diagnostics_Analysis)
+			else--remove 1 depth
+				stack[depth]=nil
+				depth-=1
+			end
+			ptr = ce::number+1
+			continue
+		elseif kind==3 then
+			depth+=1
+			includes_i+=1
+			local buff = buffer.create(12)
+			buffer.writeu32(buff,0,parse_line)
+			buffer.writeu32(buff,4,inc::number-start_line::number)
+			buffer.writeu32(buff,8,inc_end::number-start_line::number)
+			stack[depth]=buff
+			buff = buffer.create(8+#key::string)
+			buffer.writeu32(buff,0,parse_line)
+			local line = string.find(source,char_less..key,inc)::number
+			buffer.writeu32(buff,4,line-start_line::number)
+			buffer.writestring(buff,8,key::string)
+			includes[includes_i]=buff
+			ptr = inc_end::number+1
+			continue
+		end--Kind 4
+		local header_end_1 = header_end::number+1
+		local Start,End,ContentLen = string.find(source,MatchCase_Comment,header_end_1)
+		if not Start then
+			table.insert(diagnostics, {
+				[char_range] = {
+					[char_Start] = {[char_line] = parse_line,[char_character] = header::number-start_line+1};
+					[char_End]  = {[char_line] = parse_line,[char_character] = header_end::number-start_line+2};
+				},
+				[char_code] = char_Syntax_Error,
+				[char_message] = char_header_without_content,
+				[char_severity] = Enum.Severity.Warning,
+			}::Diagnostics_Analysis)
+			ptr=header_end_1
 			continue
 		end
+		--found
 
-		-- pick the earliest match
-		if s and (not cs or s <= cs) then
-			-- count newlines up to match
-			--local _, newlines = string.gsub(string.sub(src, pos, s-1), "\n", "")
-			--lineNum = lineNum + newlines
-			local lastNewline = pos - 1
-			local searchPos = pos
-
-			while true do
-				local nlStart, nlEnd = string.find(src,"\n",searchPos)
-				if not nlStart or nlStart >= s::number then break end
-				lineNum += 1
-				lastNewline = nlEnd::number
-				searchPos = nlEnd::number + 1
-			end
-
-			local column = s - lastNewline::number
-
-			-- include opener
-			stackLen = stackLen + 1
-			stack[stackLen] = {line = lineNum, char = column, key = key::string}
-
-			--scan key
-			if key then
-				if not Header_List_Code[key] and not local_header[key] then
-					local _,start_pos = string.find(src,"%-%-#include%s*<",s)
-
-					table.insert(diagnostics, {
-						range = {
-							start = { line = lineNum, character = start_pos::number-lastNewline::number },
-							["end"]  = { line = lineNum, character = column + (e::number - s::number)+1 },
-						},
-						code="Header Missing",
-						message = "Header not found",
-						severity = Enum.Severity.Hint,
-					}::Diagnostics_Analysis)
-				end
-			end
-			pos = e::number + 1
-		elseif cs then
-			-- include closer
-			if stackLen == 0 then
-				local lineOffset = 0
-				local lastNewline = pos - 1
-				local searchPos = pos
-
-				while true do
-					local nlStart, nlEnd = string.find(src,"\n",searchPos)
-					if not nlStart or nlStart >= cs then break end
-					lineOffset += 1
-					lastNewline = nlEnd::number
-					searchPos = nlEnd::number + 1
-				end
-
-				local column = cs - lastNewline::number
-				local line = lineNum + lineOffset
-
-				table.insert(diagnostics, {
-					range = {
-						start = { line = line, character = column },
-						["end"]  = { line = line, character = column + (ce::number - cs)+1 },
-					},
-					code = "Syntax Error",
-					message = "Closing --\\include with no matching --#include",
-					severity = Enum.Severity.Warning,
-				}::Diagnostics_Analysis)
-			else
-				stack[stackLen] = nil
-				stackLen -= 1
-			end
-
-			-- count newlines up to match
-			local _, newlines = string.gsub(string.sub(src, pos, cs-1), "\n", "")
-			lineNum = lineNum + newlines
-
-			pos = ce::number + 1
-		else
-			break
+		newline+=1
+		while End::number>newline do
+			newline = string.find(source,NewLineBreak,newline,true)::number
+			if not newline then break end
+			newline+=1
+			parse_line+=1
+			start_line = newline
 		end
-	end
+		if not newline then break end
 
-	-- report unclosed includes
-	for _, open in stack do
-		table.insert(diagnostics,{
-			range = {
-				start = { line = open.line, character = open.char },
-				["end"] = { line = open.line, character = open.char + 10},
+		local Close,Close_End = string.find(source,char1..ContentLen..char1,End::number)
+		if not Close then
+			table.insert(diagnostics, {
+				[char_range] = {
+					[char_Start] = {[char_line] = parse_line,[char_character] = header::number-start_line+1};
+					[char_End]  = {[char_line] = parse_line,[char_character] = header_end::number-start_line+2};
+				},
+				[char_code] = char_Syntax_Error,
+				[char_message] = char_header_without_content,
+				[char_severity] = Enum.Severity.Warning,
+			}::Diagnostics_Analysis)
+			ptr=End::number+1
+			continue
+		end		
+
+
+		while Close_End::number>newline do
+			newline = string.find(source,NewLineBreak,newline,true)::number
+			if not newline then break end
+			newline+=1
+			parse_line+=1
+			start_line = newline
+		end
+		if not newline then break end
+
+		local str = string.sub(source,End::number+1,Close-1)
+		local st = string.byte(str)
+		local nt = NewLineBreak..string.rep(t_sign,whitespace_end_true::number-whitespace::number+1)
+		if string.find(str,nt..dollar) then
+			str = string.sub(str,1,-(#nt+1))
+		end
+		str = string.gsub(str,nt..t_sign_question,NewLineBreak)
+		if st==10 then
+			str = string.sub(str,2)
+		end
+		local_header[header_name::string]=str
+		--TODO normalize tabulation and remove \n at eddges of [[]]
+		ptr=Close_End::number+1
+		continue
+	end
+	--warn(stack)
+	for i,buff in stack do
+		local line = buffer.readu32(buff,0)
+		local start = buffer.readu32(buff,4)
+		local End = buffer.readu32(buff,8)
+		table.insert(diagnostics, {
+			[char_range] = {
+				[char_Start] = {[char_line] = line,[char_character] = start+1};
+				[char_End]  = {[char_line] = line,[char_character] = End+2};
 			},
-			code = "Syntax Error",
-			message = "Unclosed include "..open.key::string.." - missing --\\include",
-			severity = Enum.Severity.Warning,
+			[char_code] = char_Syntax_Error,
+			[char_message] = char_uncloded_inclue,
+			[char_severity] = Enum.Severity.Warning,
 		}::Diagnostics_Analysis)
 	end
-
-
+	for i,buff in includes do
+		local key_len = buffer.len(buff)-8
+		local key = buffer.readstring(buff,8,key_len)
+		if Header_List_Code[key] or local_header[key] then continue end
+		local line = buffer.readu32(buff,0)
+		local start = buffer.readu32(buff,4)+2
+		table.insert(diagnostics, {
+			[char_range] = {
+				[char_Start] = { [char_line] = line, [char_character] = start},
+				[char_End]  = { [char_line] = line, [char_character] = start+key_len},
+			},
+			[char_code] = char_header_missing,
+			[char_message] = char_header_not_found,
+			[char_severity] = Enum.Severity.Hint,
+		}::Diagnostics_Analysis)
+	end
 	return response
 end
-
+--TODO make list with all headers to check if their header exists in the end
 
 Connect(GetProperty(ScriptAnalisis,"MouseButton1Click"),function():()
 	local new = not ScriptAnalisis_bool
@@ -3741,6 +3961,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 					EntryPtr+=4
 					local Code = buffer.readstring(buff,EntryPtr,temp)
 					EntryPtr+=temp
+					Name = string.gsub(Name,"[<>]","")
 					RegisterHeader(Name,Code)
 				end
 			else
@@ -3755,6 +3976,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 						EntryPtr+=4
 						local Code = buffer.readstring(buff,EntryPtr,temp)
 						EntryPtr+=temp
+						Name = string.gsub(Name,"[<>]","")
 						if Header_Lower[string.lower(Name)] then continue end
 						RegisterHeader(Name,Code)
 					end
@@ -3770,6 +3992,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 						local Code = buffer.readstring(buff,EntryPtr,temp)
 						EntryPtr+=temp
 
+						Name = string.gsub(Name,"[<>]","")
 						local lower = string.lower(Name)
 						local access = Header_Lower[lower]
 						if access then--Also update if Name~=lower
@@ -3914,6 +4137,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 						if type(Code)~="string" then continue end
 						Name = string.sub(Name,1,255)
 						sizeIndex+=1
+						Name = string.gsub(Name,"[<>]","")
 						RegisterHeader(Name,Code)
 					end
 				else
@@ -3922,6 +4146,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 							if type(v)~="table" then continue end
 							local Name = v.Title
 							if type(Name)~="string" then continue end
+							Name = string.gsub(Name,"[<>]","")
 							if Header_Lower[string.lower(Name)] then sizeIndex+=1 continue end
 							local Code = v.Code
 							if type(Code)~="string" then continue end
@@ -3937,6 +4162,7 @@ Connect(GetProperty(Import,"MouseButton1Click")::RBXScriptSignal,function():()
 							local Code = v.Code
 							if type(Code)~="string" then continue end
 							Name = string.sub(Name,1,255)
+							Name = string.gsub(Name,"[<>]","")
 							local lower = string.lower(Name)
 							local access = Header_Lower[lower]
 							sizeIndex+=1
@@ -4048,6 +4274,9 @@ Once(Plugin_Unloading::RBXScriptSignal,function():()
 	local ExportScript = ExportScript
 	if ExportScript then
 		Destroy(ExportScript)
+	end
+	for i,v in cmd do
+		Disconnect(v)
 	end
 end)
 
